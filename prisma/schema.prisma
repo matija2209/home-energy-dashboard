@@ -1,0 +1,65 @@
+// This is your Prisma schema file (e.g., prisma/schema.prisma)
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL") // Make sure DATABASE_URL is set in your .env
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Model to represent users of the application
+model User {
+  id    String @id @default(cuid()) // Using CUID for unique user IDs
+  email String @unique             // Assuming email is the unique identifier for login
+  name  String?
+
+  // Relation: A user can have multiple metering points
+  meteringPoints MeteringPoint[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Represents a specific metering point (GSRN) belonging to a user
+model MeteringPoint {
+  gsrn String @id @unique // The unique GSRN identifier from MojElektro API
+  name String?           // Optional: A user-friendly name (e.g., "Home", "Office")
+
+  // Foreign Key linking to the User model
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade) // A MeteringPoint belongs to one User
+
+  readings MeterReading[] // Relation: A MeteringPoint has many readings
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Ensure a GSRN is unique per user if needed, though GSRN itself is globally unique
+  // However, keeping the @@unique([gsrn]) above is simpler as GSRN is the primary ID.
+}
+
+// Holds the individual 15-minute meter readings
+model MeterReading {
+  id        Int      @id @default(autoincrement())
+  timestamp DateTime @db.Timestamp(6) // Timestamp of the reading interval start
+  value     Decimal  @db.Decimal(10, 4) // Reading value (adjust precision as needed)
+  readingTypeCode String              // MojElektro reading type code
+  quality         Json?    @db.JsonB     // Reading quality info from API (JSONB for Postgres efficiency)
+
+  // Foreign Key to link back to the specific MeteringPoint
+  meteringPointId String
+  meteringPoint   MeteringPoint @relation(fields: [meteringPointId], references: [gsrn], onDelete: Cascade) // Link reading to a point
+
+  // === Indices for Performance ===
+  // Index for querying by time
+  @@index([timestamp])
+
+  // Composite index for the most common query: finding readings for a specific point,
+  // type, within a time range. Since meteringPointId links to a user, this covers user-specific queries.
+  @@index([meteringPointId, readingTypeCode, timestamp])
+
+  // Ensures data integrity: no duplicate reading for the same point, type, and time.
+  @@unique([meteringPointId, readingTypeCode, timestamp])
+} 
