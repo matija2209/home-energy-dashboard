@@ -57,14 +57,38 @@ export class MojElektroClient {
      */
     async getMeterReadings(params: GetMeterReadingsParams): Promise<GetMeterReadingsResponse> {
         try {
-            const response = await this.axiosInstance.get<GetMeterReadingsResponse>('/meter-readings', { params });
+            // Manually construct the path, ensuring /v1/ is present
+            const basePath = this.axiosInstance.defaults.baseURL?.replace(/\/$/, '') || ''; // Remove trailing slash if exists
+            const fullPath = `${basePath}/meter-readings`;
+            const url = new URL(fullPath);
+
+            const searchParams = new URLSearchParams();
+            // Check if params exist before iterating
+            if (params) {
+                for (const [key, value] of Object.entries(params)) {
+                    if (value !== undefined && value !== null) {
+                        // Handle array values for 'option' if necessary, based on actual type definition
+                        if (key === 'option' && Array.isArray(value)) {
+                            value.forEach(opt => searchParams.append(key, String(opt)));
+                        } else {
+                            searchParams.append(key, String(value));
+                        }
+                    }
+                }
+            }
+
+            url.search = searchParams.toString();
+            const fullUrlString = url.toString();
+
+            const response = await this.axiosInstance.get<GetMeterReadingsResponse>(fullUrlString);
             return response.data;
         } catch (error) {
-            if (axios.isAxiosError(error) && error.response && isApiError(error.response.data)) {
-                // Re-throw with API error details
-                throw new Error(`API Error (${error.response.data.koda}): ${error.response.data.opis}`);
+            if (axios.isAxiosError(error)) {
+                if (error.response && isApiError(error.response.data)) {
+                    throw new Error(`API Error (${error.response.data.koda}): ${error.response.data.opis}`);
+                }
             }
-            // Re-throw original error if it's not a recognized API error
+            // Re-throw original error if it's not a recognized API error or other type of error
             throw error;
         }
     }

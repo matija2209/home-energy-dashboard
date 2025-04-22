@@ -18,6 +18,9 @@ model User {
   // Relation: A user can have multiple metering points
   meteringPoints MeteringPoint[]
 
+  // Relation: A user can have multiple meter readings (across all their points)
+  meterReadings MeterReading[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -52,13 +55,23 @@ model MeterReading {
   meteringPointId String
   meteringPoint   MeteringPoint @relation(fields: [meteringPointId], references: [gsrn], onDelete: Cascade) // Link reading to a point
 
+  // Direct Foreign Key to the User
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade) // Direct link to User
+
   // === Indices for Performance ===
   // Index for querying by time
   @@index([timestamp])
 
+  // Index for querying directly by user
+  @@index([userId])
+
   // Composite index for the most common query: finding readings for a specific point,
-  // type, within a time range. Since meteringPointId links to a user, this covers user-specific queries.
+  // type, within a time range.
   @@index([meteringPointId, readingTypeCode, timestamp])
+
+  // Composite index for user-specific queries across different points/types/time
+  @@index([userId, readingTypeCode, timestamp])
 
   // Ensures data integrity: no duplicate reading for the same point, type, and time.
   @@unique([meteringPointId, readingTypeCode, timestamp])
