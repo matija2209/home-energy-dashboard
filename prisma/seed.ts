@@ -12,7 +12,7 @@ const prisma = new PrismaClient();
 const apiKey = process.env.MOJ_ELEKTRO_API_KEY;
 const targetGsrn = process.env.TARGET_GSRN; // Your metering point GSRN
 const targetReadingTypeCode = process.env.TARGET_READING_TYPE_CODE; // The specific reading type code for consumption
-const defaultStartDate = '2025-04-11';
+const defaultStartDate = '2025-04-16';
 const seedStartDateStr = process.env.SEED_START_DATE || defaultStartDate;
 const apiEnv = "production"
 
